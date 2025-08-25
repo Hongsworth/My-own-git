@@ -86,3 +86,15 @@ def repo_dir(repo, *path, mkdir=False):
         return path
     else:
         return None
+    
+def repo_create(path):
+
+    repo = GitRepository(path,True)
+
+    if os.path.exists(repo.worktree):
+        if not os.path.isdir(repo.worktree):
+            raise Exception(f"{path} is not a directory")
+        if os.path.exists(repo.gitdir) and os.listdir(repo.gitdir):
+            raise Exception(f"{path} is not empty")
+    else:
+        os.makedirs(repo.worktree)
