@@ -137,3 +137,23 @@ argsp.add_argument("path",
 
 def cmd_init(args):
     repo_create(args.path)
+
+# Finds the root directory of the repo
+def repo_find(path = ".", required = True):
+    # returns the full canonical path of the directory
+    path = os.path.realpath(path)
+
+    if os.path.isdir(os.path.join(path, ".git")):
+        return GitRepository(path)
+
+    parent = os.path.realpath(os.path.join(path, ".."))
+
+    # checks if the parent folder is the same as path
+    # if it is the same then it means it has reach home directory, therefore repo does not exist
+    if parent == path:
+        if required:
+            raise Exception("No git directory.")
+        else:
+            return None
+    # recursively calls the function to its parent directory
+    return repo_find(parent, required)
