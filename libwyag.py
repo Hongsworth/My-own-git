@@ -256,7 +256,6 @@ def object_find(repo, name, fmt = None, follow  = True):
     return name
 
 # Create the hash of a file, stores or prints the hash
-
 argsp = argsubparsers.add_parser(
     "hash-object",
     help = "Compute object ID and optionally creates a blob from file")
@@ -297,3 +296,44 @@ def object_hash(fd, fmt, repo):
         case _: raise Exception(f"Unknown type {fmt}!")
 
     return object_write(obj, repo)
+
+def kvlm_parse(raw, start = 0, dct=None):
+
+    # check for dct, else the dict will grow endlessly
+    if not dct:
+        dct=dict()
+
+    # This function is recursive: it reads a key/value pair, then call
+    # itself back with the new position.  So we first need to know
+    # where we are: at a keyword, or already in the messageQ
+
+    # If space is encountered before a new line then keyword is detected 
+    # Finds the position of the first space and newline from start
+    spc = raw.find(b' ', start)
+    nl = raw.find(b'\n', start)
+
+    # spc = -1 if there is no space, if nl<spc then theres no key value pair
+    if(spc<0) or (nl < spc):
+        assert nl == start
+        dct[None] =  raw[start+1:]
+        return dct
+    
+    key = raw[start:spc]
+
+    end = start
+
+    while True:
+        end = raw.find(b'\n', end+1)
+        if raw[end+1] != ord(' '): break
+
+    value = raw[spc+1:end].replace(b'\n ', b'\n')
+
+    if key in dct:
+        if type(dct[key]) == list:
+            dct[key].append(value)
+        else:
+            dct[key] = [dct[key], value]
+    else:
+        dct[key] = value
+
+    return kvlm_parse(raw, start = end + 1, dct = dct)
