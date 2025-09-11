@@ -318,6 +318,7 @@ def kvlm_parse(raw, start = 0, dct=None):
         dct[None] =  raw[start+1:]
         return dct
     
+    # read key value pair
     key = raw[start:spc]
 
     end = start
@@ -328,6 +329,7 @@ def kvlm_parse(raw, start = 0, dct=None):
 
     value = raw[spc+1:end].replace(b'\n ', b'\n')
 
+    # don't overwrite existing data
     if key in dct:
         if type(dct[key]) == list:
             dct[key].append(value)
@@ -336,4 +338,61 @@ def kvlm_parse(raw, start = 0, dct=None):
     else:
         dct[key] = value
 
+    # recursively calls the function until the entire object is parsed
     return kvlm_parse(raw, start = end + 1, dct = dct)
+
+def kvlm_serialize(kvlm):
+    ret = b''
+
+    for k in kvlm.keys():
+        if k == None:
+            continue
+        val = kvlm[k]
+        if type(val) != list:
+            val = [val]
+
+        for v in val:
+            ret += k + b' ' + (v.replace(b'\n', b'\n ')) + b'\n'
+    
+    ret += b'\n' + kvlm[None]
+
+    return ret
+
+class GitCommit(GitObject):
+    fmt = b'commit'
+
+    def deserialize(self, data):
+        self.kvlm = kvlm_parse(data)
+
+    def serialize(self):
+        return kvlm_serialize(self.kvlm)
+    
+    def init(self):
+        self.kvlm = dict()
+
+argsp = argsubparsers.add_parser("log", help="Display history of a given commit.")
+argsp.add_argument("commit",
+                   default = "HEAD",
+                   nargs = "?",
+                   help = "Commit to start at.")
+
+def cmd_log(args):
+    repo = repo_find()
+
+    print("digraph wyaglog{")
+    print("  node[shape=rect]")
+    log_graphviz(repo, object_find(repo, args.commit), set())
+    print("}")
+
+def log_graphviz(repo, sha, seen):
+
+    if sha in seen:
+        return
+    seen.add(sha)
+
+    commit = object_read(repo, sha)
+    message = commit.kvlm[None].decode("utf8").strip()
+    message = message.replace("\\", "\\\\")
+    message = message.replace("\"", "\\\"")
+
+
